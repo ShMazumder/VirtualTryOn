@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "android-sdk": "^1.0.0",
     "imagemin-pngquant": "^10.0.0"
   }
 }
