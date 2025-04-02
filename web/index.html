@@ -35,6 +35,10 @@
   
   <link rel="manifest" href="manifest.json">
 
+</head>
+<body>
+  <script src="flutter_bootstrap.js" async></script>
+
   <script>
     // Request camera permissions on page load
     document.addEventListener('DOMContentLoaded', () => {
@@ -43,8 +47,5 @@
         .catch(err => console.error('Camera error:', err));
     });
   </script>
-</head>
-<body>
-  <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

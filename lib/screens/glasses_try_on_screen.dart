@@ -61,6 +61,10 @@ class GlassesTryOnScreenState extends State<GlassesTryOnScreen> {
     try {
       if (kIsWeb) {
         // Web-specific implementation
+        final cameras = await availableCameras();
+        if (cameras.isEmpty) {
+          throw Exception('No cameras available');
+        }
         _cameraController = CameraController(
           const CameraDescription(
             name: 'webcam',
