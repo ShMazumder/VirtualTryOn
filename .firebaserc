@@ -1,0 +1,14 @@
+{
+  "projects": {
+    "default": "well-care-hub"
+  },
+  "targets": {
+    "well-care-hub": {
+      "hosting": {
+        "trialroom": [
+          "trialroom"
+        ]
+      }
+    }
+  }
+}
