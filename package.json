@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "imagemin-pngquant": "^10.0.0"
+  }
+}
