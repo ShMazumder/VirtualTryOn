@@ -18,13 +18,13 @@ class GlassesTryOnScreenState extends State<GlassesTryOnScreen> {
   int _selectedGlasses = 0;
   bool _isDetecting = false;
 
-  final List<String> _glassesAssets = [
-    'assets/glasses/glasses_0.png',
-    'assets/glasses/glasses_1.png',
-    'assets/glasses/glasses_2.png',
-    'assets/glasses/glasses_3.png',
-    'assets/glasses/glasses_4.png',
-  ];
+  // final List<String> _glassesAssets = [
+  //   'assets/glasses/glasses_0.png',
+  //   'assets/glasses/glasses_1.png',
+  //   'assets/glasses/glasses_2.png',
+  //   'assets/glasses/glasses_3.png',
+  //   'assets/glasses/glasses_4.png',
+  // ];
 
   @override
   void initState() {
