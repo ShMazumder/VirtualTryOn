@@ -4,6 +4,8 @@ import 'package:google_ml_kit/google_ml_kit.dart';
 import '../models/glasses_model.dart';
 
 class GlassesTryOnScreen extends StatefulWidget {
+  const GlassesTryOnScreen({super.key});
+
   @override
   _GlassesTryOnScreenState createState() => _GlassesTryOnScreenState();
 }
@@ -164,7 +166,7 @@ class _GlassesTryOnScreenState extends State<GlassesTryOnScreen> {
       bottom: 20,
       left: 0,
       right: 0,
-      child: Container(
+      child: SizedBox(
         height: 120,
         child: ListView.builder(
           scrollDirection: Axis.horizontal,

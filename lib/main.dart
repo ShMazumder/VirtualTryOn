@@ -7,6 +7,8 @@ void main() async {
 }
 
 class VirtualGlassesApp extends StatelessWidget {
+  const VirtualGlassesApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
