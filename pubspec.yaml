@@ -1,0 +1,27 @@
+name: virtual_glasses_tryon
+description: A virtual glasses try-on app for web and mobile
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+  # flutter: '>=3.13.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # camera: ^0.10.5
+  # camera_web: ^0.2.1
+  google_ml_kit: ^0.20.0
+  google_mlkit_face_detection: ^0.13.1
+  vector_math: ^2.1.4
+  cross_file: ^0.3.3
+  camera: ^0.11.1
+  camera_web: ^0.3.5
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  assets:
+    - assets/glasses/
+    - assets/models/
