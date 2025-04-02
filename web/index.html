@@ -37,5 +37,14 @@
 </head>
 <body>
   <script src="flutter_bootstrap.js" async></script>
+
+  <script>
+    // Request camera permissions on page load
+    document.addEventListener('DOMContentLoaded', () => {
+      navigator.mediaDevices.getUserMedia({ video: true })
+        .then(() => console.log('Camera access granted'))
+        .catch(err => console.error('Camera error:', err));
+    });
+  </script>
 </body>
 </html>

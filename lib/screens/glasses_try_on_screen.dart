@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
+import 'package:camera_web/camera_web.dart' if (dart.library.html) 'dart:html';
+
 import 'package:google_ml_kit/google_ml_kit.dart';
 import '../models/glasses_model.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class GlassesTryOnScreen extends StatefulWidget {
   const GlassesTryOnScreen({super.key});
@@ -41,24 +44,62 @@ class GlassesTryOnScreenState extends State<GlassesTryOnScreen> {
 
   Future<void> _initializeCamera() async {
     try {
-      final cameras = await availableCameras();
-      final frontCamera = cameras.firstWhere(
-        (camera) => camera.lensDirection == CameraLensDirection.front,
-      );
-
-      _cameraController = CameraController(
-        frontCamera,
-        ResolutionPreset.medium,
-        enableAudio: false,
-      );
+      if (kIsWeb) {
+        // Web-specific initialization
+        final cameras = await availableCameras();
+        if (cameras.isNotEmpty) {
+          _cameraController = CameraController(
+            cameras.firstWhere(
+              (camera) => camera.lensDirection == CameraLensDirection.front,
+              orElse: () => cameras.first,
+            ),
+            ResolutionPreset.low,
+          );
+        } else {
+          // Fallback for web when no cameras detected
+          _cameraController = CameraController(
+            const CameraDescription(
+              name: 'webcam',
+              lensDirection: CameraLensDirection.front,
+              sensorOrientation: 0,
+            ),
+            ResolutionPreset.low,
+          );
+        }
+      } else {
+        // Mobile initialization
+        final cameras = await availableCameras();
+        _cameraController = CameraController(
+          cameras.firstWhere(
+            (camera) => camera.lensDirection == CameraLensDirection.front,
+            orElse: () => cameras.first,
+          ),
+          ResolutionPreset.medium,
+        );
+      }
 
       await _cameraController.initialize();
       _cameraController.startImageStream(_processCameraImage);
-
       setState(() => _isInitialized = true);
     } catch (e) {
       print('Camera initialization error: $e');
+      setState(() => _isInitialized = false);
+      _showCameraError();
     }
+  }
+
+  void _showCameraError() {
+    // Show user-friendly error message
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Camera access required for virtual try-on'),
+        action: SnackBarAction(
+          label: 'Settings',
+          onPressed: () => null,
+          // openAppSettings(), // Requires permission_handler package
+        ),
+      ),
+    );
   }
 
   Future<void> _processCameraImage(CameraImage image) async {
