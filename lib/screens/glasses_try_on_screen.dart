@@ -26,8 +26,8 @@ class GlassesTryOnScreenState extends State<GlassesTryOnScreen> {
   void initState() {
     super.initState();
     _checkCameraPermission();
-    _faceDetector = GoogleMlKit.vision.faceDetector(
-      FaceDetectorOptions(
+    _faceDetector = FaceDetector(
+      options: FaceDetectorOptions(
         enableContours: true,
         enableLandmarks: true,
         performanceMode: FaceDetectorMode.fast,
