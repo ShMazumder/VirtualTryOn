@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:google_ml_kit/google_ml_kit.dart';
+import '../models/glasses_model.dart';
 
 class GlassesTryOnScreen extends StatefulWidget {
   @override
@@ -141,15 +142,16 @@ class _GlassesTryOnScreenState extends State<GlassesTryOnScreen> {
       return Container();
     }
 
+    final currentGlasses = glassesList[_selectedGlasses];
     final eyeDistance = (rightEye.x - leftEye.x).abs();
-    final glassesWidth = eyeDistance * 2.5;
+    final glassesWidth = eyeDistance * 2.5 * currentGlasses.scaleFactor;
     final glassesHeight = glassesWidth * 0.4;
 
     return Positioned(
       left: leftEye.x - glassesWidth * 0.35,
       top: noseBase.y - glassesHeight * 0.5,
       child: Image.asset(
-        _glassesAssets[_selectedGlasses],
+        currentGlasses.assetPath,
         width: glassesWidth,
         height: glassesHeight,
         fit: BoxFit.contain,
@@ -163,28 +165,46 @@ class _GlassesTryOnScreenState extends State<GlassesTryOnScreen> {
       left: 0,
       right: 0,
       child: Container(
-        height: 100,
+        height: 120,
         child: ListView.builder(
           scrollDirection: Axis.horizontal,
-          itemCount: _glassesAssets.length,
+          itemCount: glassesList.length,
           itemBuilder: (context, index) {
+            final glasses = glassesList[index];
             return GestureDetector(
               onTap: () => setState(() => _selectedGlasses = index),
               child: Container(
                 margin: EdgeInsets.symmetric(horizontal: 8),
-                width: 80,
-                decoration: BoxDecoration(
-                  border: Border.all(
-                    color: _selectedGlasses == index
-                        ? Colors.blue
-                        : Colors.transparent,
-                    width: 2,
-                  ),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Image.asset(
-                  _glassesAssets[index],
-                  fit: BoxFit.contain,
+                width: 100,
+                child: Column(
+                  children: [
+                    Container(
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                          color: _selectedGlasses == index
+                              ? Colors.blue
+                              : Colors.transparent,
+                          width: 2,
+                        ),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Image.asset(
+                        glasses.assetPath,
+                        width: 80,
+                        height: 60,
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      glasses.name,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
                 ),
               ),
             );
