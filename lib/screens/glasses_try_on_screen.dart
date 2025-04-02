@@ -7,10 +7,10 @@ class GlassesTryOnScreen extends StatefulWidget {
   const GlassesTryOnScreen({super.key});
 
   @override
-  _GlassesTryOnScreenState createState() => _GlassesTryOnScreenState();
+  GlassesTryOnScreenState createState() => GlassesTryOnScreenState();
 }
 
-class _GlassesTryOnScreenState extends State<GlassesTryOnScreen> {
+class GlassesTryOnScreenState extends State<GlassesTryOnScreen> {
   late CameraController _cameraController;
   late FaceDetector _faceDetector;
   List<Face> _faces = [];
