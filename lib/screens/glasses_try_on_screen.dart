@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:camera_web/camera_web.dart' if (dart.library.html) 'dart:html';
+import 'package:permission_handler/permission_handler.dart';
 
 import 'package:google_ml_kit/google_ml_kit.dart';
 import '../models/glasses_model.dart';
@@ -88,19 +89,31 @@ class GlassesTryOnScreenState extends State<GlassesTryOnScreen> {
     }
   }
 
-  void _showCameraError() {
-    // Show user-friendly error message
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Camera access required for virtual try-on'),
-        action: SnackBarAction(
-          label: 'Settings',
-          onPressed: () => null,
-          // openAppSettings(), // Requires permission_handler package
-        ),
+ void _showCameraError() {
+  // First check if the context is available
+  if (!mounted) return;
+  
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: const Text('Camera access is required for virtual try-on'),
+      action: SnackBarAction(
+        label: 'Settings',
+        onPressed: () async {
+          // Open app settings
+          await openAppSettings();
+          
+          // Check permission again after returning from settings
+          final status = await Permission.camera.status;
+          if (status.isGranted && mounted) {
+            // Reinitialize camera if permission was granted
+            _initializeCamera();
+          }
+        },
       ),
-    );
-  }
+      duration: const Duration(seconds: 5),
+    ),
+  );
+}
 
   Future<void> _processCameraImage(CameraImage image) async {
     if (_isDetecting || !mounted) return;

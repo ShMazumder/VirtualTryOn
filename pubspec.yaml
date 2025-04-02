@@ -16,6 +16,7 @@ dependencies:
   cross_file: ^0.3.3
   camera: ^0.11.1
   camera_web: ^0.3.5
+  permission_handler: ^11.4.0
 
 dev_dependencies:
   flutter_test:
