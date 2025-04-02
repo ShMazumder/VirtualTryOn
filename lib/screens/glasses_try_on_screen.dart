@@ -59,27 +59,24 @@ class GlassesTryOnScreenState extends State<GlassesTryOnScreen> {
 
   Future<void> _initializeCamera() async {
     try {
+      // First get available cameras
+      final cameras = await availableCameras();
+
+      if (cameras.isEmpty) {
+        throw Exception('No cameras available on this device');
+      }
+
       if (kIsWeb) {
-        // Web-specific implementation
-        final cameras = await availableCameras();
-        if (cameras.isEmpty) {
-          throw Exception('No cameras available');
-        }
+        // Web-specific initialization
         _cameraController = CameraController(
-          const CameraDescription(
-            name: 'webcam',
-            lensDirection: CameraLensDirection.front,
-            sensorOrientation: 0,
+          cameras.firstWhere(
+            (camera) => camera.lensDirection == CameraLensDirection.front,
+            orElse: () => cameras.first,
           ),
           ResolutionPreset.low,
         );
       } else {
-        // Mobile implementation
-        final cameras = await availableCameras();
-        if (cameras.isEmpty) {
-          throw Exception('No cameras available');
-        }
-        
+        // Mobile initialization
         _cameraController = CameraController(
           cameras.firstWhere(
             (camera) => camera.lensDirection == CameraLensDirection.front,
@@ -90,12 +87,11 @@ class GlassesTryOnScreenState extends State<GlassesTryOnScreen> {
       }
 
       await _cameraController.initialize();
-      
-      // Only start image stream for mobile
+
       if (!kIsWeb) {
         _cameraController.startImageStream(_processCameraImage);
       }
-      
+
       setState(() => _isInitialized = true);
     } catch (e) {
       print('Camera initialization error: $e');
@@ -106,12 +102,12 @@ class GlassesTryOnScreenState extends State<GlassesTryOnScreen> {
 
   void _showCameraError() {
     if (!mounted) return;
-    
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: const Text('Camera access is required for virtual try-on'),
-        action: kIsWeb 
-            ? null 
+        action: kIsWeb
+            ? null
             : SnackBarAction(
                 label: 'Settings',
                 onPressed: () async {
@@ -177,8 +173,8 @@ class GlassesTryOnScreenState extends State<GlassesTryOnScreen> {
               const CircularProgressIndicator(),
               const SizedBox(height: 20),
               Text(
-                _cameraPermissionGranted 
-                    ? 'Initializing Camera...' 
+                _cameraPermissionGranted
+                    ? 'Initializing Camera...'
                     : 'Waiting for camera permission...',
                 style: const TextStyle(color: Colors.white),
               ),
