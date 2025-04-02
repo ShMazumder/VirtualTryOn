@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:camera_web/camera_web.dart' if (dart.library.html) 'dart:html';
 import 'package:permission_handler/permission_handler.dart';
-
 import 'package:google_ml_kit/google_ml_kit.dart';
 import '../models/glasses_model.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -21,19 +20,12 @@ class GlassesTryOnScreenState extends State<GlassesTryOnScreen> {
   bool _isInitialized = false;
   int _selectedGlasses = 0;
   bool _isDetecting = false;
-
-  // final List<String> _glassesAssets = [
-  //   'assets/glasses/glasses_0.png',
-  //   'assets/glasses/glasses_1.png',
-  //   'assets/glasses/glasses_2.png',
-  //   'assets/glasses/glasses_3.png',
-  //   'assets/glasses/glasses_4.png',
-  // ];
+  bool _cameraPermissionGranted = false;
 
   @override
   void initState() {
     super.initState();
-    _initializeCamera();
+    _checkCameraPermission();
     _faceDetector = GoogleMlKit.vision.faceDetector(
       FaceDetectorOptions(
         enableContours: true,
@@ -43,33 +35,47 @@ class GlassesTryOnScreenState extends State<GlassesTryOnScreen> {
     );
   }
 
+  Future<void> _checkCameraPermission() async {
+    if (kIsWeb) {
+      // Web handles permissions differently
+      _initializeCamera();
+      return;
+    }
+
+    final status = await Permission.camera.status;
+    if (!status.isGranted) {
+      final result = await Permission.camera.request();
+      if (result.isGranted) {
+        setState(() => _cameraPermissionGranted = true);
+        _initializeCamera();
+      } else {
+        _showCameraError();
+      }
+    } else {
+      setState(() => _cameraPermissionGranted = true);
+      _initializeCamera();
+    }
+  }
+
   Future<void> _initializeCamera() async {
     try {
       if (kIsWeb) {
-        // Web-specific initialization
-        final cameras = await availableCameras();
-        if (cameras.isNotEmpty) {
-          _cameraController = CameraController(
-            cameras.firstWhere(
-              (camera) => camera.lensDirection == CameraLensDirection.front,
-              orElse: () => cameras.first,
-            ),
-            ResolutionPreset.low,
-          );
-        } else {
-          // Fallback for web when no cameras detected
-          _cameraController = CameraController(
-            const CameraDescription(
-              name: 'webcam',
-              lensDirection: CameraLensDirection.front,
-              sensorOrientation: 0,
-            ),
-            ResolutionPreset.low,
-          );
-        }
+        // Web-specific implementation
+        _cameraController = CameraController(
+          const CameraDescription(
+            name: 'webcam',
+            lensDirection: CameraLensDirection.front,
+            sensorOrientation: 0,
+          ),
+          ResolutionPreset.low,
+        );
       } else {
-        // Mobile initialization
+        // Mobile implementation
         final cameras = await availableCameras();
+        if (cameras.isEmpty) {
+          throw Exception('No cameras available');
+        }
+        
         _cameraController = CameraController(
           cameras.firstWhere(
             (camera) => camera.lensDirection == CameraLensDirection.front,
@@ -80,7 +86,12 @@ class GlassesTryOnScreenState extends State<GlassesTryOnScreen> {
       }
 
       await _cameraController.initialize();
-      _cameraController.startImageStream(_processCameraImage);
+      
+      // Only start image stream for mobile
+      if (!kIsWeb) {
+        _cameraController.startImageStream(_processCameraImage);
+      }
+      
       setState(() => _isInitialized = true);
     } catch (e) {
       print('Camera initialization error: $e');
@@ -89,34 +100,30 @@ class GlassesTryOnScreenState extends State<GlassesTryOnScreen> {
     }
   }
 
- void _showCameraError() {
-  // First check if the context is available
-  if (!mounted) return;
-  
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(
-      content: const Text('Camera access is required for virtual try-on'),
-      action: SnackBarAction(
-        label: 'Settings',
-        onPressed: () async {
-          // Open app settings
-          await openAppSettings();
-          
-          // Check permission again after returning from settings
-          final status = await Permission.camera.status;
-          if (status.isGranted && mounted) {
-            // Reinitialize camera if permission was granted
-            _initializeCamera();
-          }
-        },
+  void _showCameraError() {
+    if (!mounted) return;
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Camera access is required for virtual try-on'),
+        action: kIsWeb 
+            ? null 
+            : SnackBarAction(
+                label: 'Settings',
+                onPressed: () async {
+                  await openAppSettings();
+                  if (mounted) {
+                    _checkCameraPermission();
+                  }
+                },
+              ),
+        duration: const Duration(seconds: 5),
       ),
-      duration: const Duration(seconds: 5),
-    ),
-  );
-}
+    );
+  }
 
   Future<void> _processCameraImage(CameraImage image) async {
-    if (_isDetecting || !mounted) return;
+    if (_isDetecting || !mounted || kIsWeb) return;
     _isDetecting = true;
 
     try {
@@ -163,12 +170,21 @@ class GlassesTryOnScreenState extends State<GlassesTryOnScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              CircularProgressIndicator(),
-              SizedBox(height: 20),
+              const CircularProgressIndicator(),
+              const SizedBox(height: 20),
               Text(
-                'Initializing Camera...',
-                style: TextStyle(color: Colors.white),
+                _cameraPermissionGranted 
+                    ? 'Initializing Camera...' 
+                    : 'Waiting for camera permission...',
+                style: const TextStyle(color: Colors.white),
               ),
+              if (!_cameraPermissionGranted && !kIsWeb) ...[
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: _checkCameraPermission,
+                  child: const Text('Grant Permission'),
+                ),
+              ],
             ],
           ),
         ),
@@ -187,7 +203,7 @@ class GlassesTryOnScreenState extends State<GlassesTryOnScreen> {
   }
 
   Widget _buildFaceOverlay() {
-    if (_faces.isEmpty) return Container();
+    if (_faces.isEmpty || kIsWeb) return Container();
 
     final face = _faces.first;
     final leftEye = face.landmarks[FaceLandmarkType.leftEye]?.position;
@@ -230,7 +246,7 @@ class GlassesTryOnScreenState extends State<GlassesTryOnScreen> {
             return GestureDetector(
               onTap: () => setState(() => _selectedGlasses = index),
               child: Container(
-                margin: EdgeInsets.symmetric(horizontal: 8),
+                margin: const EdgeInsets.symmetric(horizontal: 8),
                 width: 100,
                 child: Column(
                   children: [
@@ -251,10 +267,10 @@ class GlassesTryOnScreenState extends State<GlassesTryOnScreen> {
                         fit: BoxFit.contain,
                       ),
                     ),
-                    SizedBox(height: 4),
+                    const SizedBox(height: 4),
                     Text(
                       glasses.name,
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 12,
                       ),
