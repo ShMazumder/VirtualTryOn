@@ -128,7 +128,10 @@ class GlassesTryOnScreenState extends State<GlassesTryOnScreen> {
 
     try {
       final inputImage = _inputImageFromCameraImage(image);
-      if (inputImage == null) return;
+      if (inputImage == null) {
+        print("No face.");
+        return;
+      }
 
       final faces = await _faceDetector.processImage(inputImage);
       if (mounted) {

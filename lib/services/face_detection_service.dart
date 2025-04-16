@@ -3,16 +3,27 @@ import 'package:google_ml_kit/google_ml_kit.dart';
 import 'package:camera/camera.dart';
 
 class FaceDetectionService {
-  final FaceDetector _faceDetector;
 
-  FaceDetectionService()
-      : _faceDetector = GoogleMlKit.vision.faceDetector(
-          FaceDetectorOptions(
-            enableContours: true,
-            enableLandmarks: true,
-            performanceMode: FaceDetectorMode.fast,
-          ),
-        );
+  final FaceDetector _faceDetector = FaceDetector(
+    options: FaceDetectorOptions(
+      enableContours: true,
+      enableLandmarks: true,
+      performanceMode: FaceDetectorMode.fast,
+    ),
+  );
+
+  FaceDetectionService();
+
+  // final FaceDetector _faceDetector;
+
+  // FaceDetectionService()
+  //     : _faceDetector = GoogleMlKit.vision.faceDetector(
+  //         FaceDetectorOptions(
+  //           enableContours: true,
+  //           enableLandmarks: true,
+  //           performanceMode: FaceDetectorMode.fast,
+  //         ),
+  //       );
 
   Future<List<Face>> detectFaces(CameraImage image) async {
     final inputImage = _inputImageFromCameraImage(image);
