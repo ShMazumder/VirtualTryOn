@@ -1,44 +1,50 @@
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
-import 'package:camera_web/camera_web.dart' if (dart.library.html) 'dart:html';
-import 'package:permission_handler/permission_handler.dart';
-import 'package:google_ml_kit/google_ml_kit.dart';
-import '../models/glasses_model.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:io'; // Import dart:io
+import '../models/glasses_model.dart';
+import 'widgets/face_overlay.dart';
+import 'package:permission_handler/permission_handler.dart';
+import '../services/face_detection_service.dart';
+import 'widgets/glasses_selector.dart'; // Import GlassesSelector
 
 class GlassesTryOnScreen extends StatefulWidget {
-  const GlassesTryOnScreen({super.key});
+  const GlassesTryOnScreen({Key? key}) : super(key: key);
 
   @override
-  GlassesTryOnScreenState createState() => GlassesTryOnScreenState();
+  State<GlassesTryOnScreen> createState() => _GlassesTryOnScreenState();
 }
 
-class GlassesTryOnScreenState extends State<GlassesTryOnScreen> {
+class _GlassesTryOnScreenState extends State<GlassesTryOnScreen> {
   late CameraController _cameraController;
-  late FaceDetector _faceDetector;
-  List<Face> _faces = [];
-  bool _isInitialized = false;
+  final FaceDetectionService _faceDetectionService = FaceDetectionService();
   int _selectedGlasses = 0;
-  bool _isDetecting = false;
   bool _cameraPermissionGranted = false;
+  static const String initializingCamera = 'Initializing Camera...';
+  static const String waitingCameraPermission =
+      'Waiting for camera permission...';
 
   @override
   void initState() {
     super.initState();
     _checkCameraPermission();
-    _faceDetector = FaceDetector(
-      options: FaceDetectorOptions(
-        enableContours: true,
-        enableLandmarks: true,
-        performanceMode: FaceDetectorMode.fast,
-      ),
-    );
   }
 
   Future<void> _checkCameraPermission() async {
     if (kIsWeb) {
-      // Web handles permissions differently
-      _initializeCamera();
+      if (await Permission.camera.isGranted) {
+        setState(() => _cameraPermissionGranted = true);
+        _initializeCamera();
+      } else {
+        final status = await Permission.camera.request();
+        if (status.isGranted) {
+          setState(() => _cameraPermissionGranted = true);
+          _initializeCamera();
+        } else {
+          _showCameraError(
+              'Camera permission not granted on web. Please enable it in your browser settings.');
+        }
+      }
       return;
     }
 
@@ -49,7 +55,8 @@ class GlassesTryOnScreenState extends State<GlassesTryOnScreen> {
         setState(() => _cameraPermissionGranted = true);
         _initializeCamera();
       } else {
-        _showCameraError();
+        _showCameraError(
+            'Camera permission not granted. Please enable it in your device settings.');
       }
     } else {
       setState(() => _cameraPermissionGranted = true);
@@ -63,17 +70,21 @@ class GlassesTryOnScreenState extends State<GlassesTryOnScreen> {
       final cameras = await availableCameras();
 
       if (cameras.isEmpty) {
-        throw Exception('No cameras available on this device');
+        _showCameraError('No cameras available on this device');
+        return;
       }
-
       if (kIsWeb) {
-        // Web-specific initialization
-        _cameraController = CameraController(
-          cameras.firstWhere(
+        final frontCamera = cameras.firstWhere(
             (camera) => camera.lensDirection == CameraLensDirection.front,
-            orElse: () => cameras.first,
-          ),
+            orElse: () => cameras.first);
+        // Web-specific initialization with lower resolution
+        // Consider using a lower resolution for web for performance reasons
+
+        // You might also want to disable audio for web
+        _cameraController = CameraController(
+          frontCamera,
           ResolutionPreset.low,
+          enableAudio: false,
         );
       } else {
         // Mobile initialization
@@ -89,80 +100,57 @@ class GlassesTryOnScreenState extends State<GlassesTryOnScreen> {
       await _cameraController.initialize();
 
       if (!kIsWeb) {
-        _cameraController.startImageStream(_processCameraImage);
+        _cameraController
+            .startImageStream(_faceDetectionService.processCameraImage);
       }
-
-      setState(() => _isInitialized = true);
-    } catch (e) {
-      print('Camera initialization error: $e');
-      setState(() => _isInitialized = false);
-      _showCameraError();
+      setState(() => _isInitialized = true); // Camera initialized successfully
+    } on CameraException catch (e) {
+      String errorDescription;
+      switch (e.code) {
+        default:
+          errorDescription =
+              'An unknown camera error occurred: ${e.description}';
+      }
+      setState(() => _isInitialized = false); // Camera initialization failed
+      _showCameraError(e.toString());
     }
   }
 
-  void _showCameraError() {
+  void _showCameraError(String errorMessage) {
     if (!mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: const Text('Camera access is required for virtual try-on'),
-        action: kIsWeb
-            ? null
-            : SnackBarAction(
-                label: 'Settings',
-                onPressed: () async {
-                  await openAppSettings();
-                  if (mounted) {
-                    _checkCameraPermission();
-                  }
-                },
-              ),
+        content: Text(
+          errorMessage.isNotEmpty
+              ? 'Camera access is required. Error: $errorMessage'
+              : 'Camera access is required for virtual try-on',
+        ),
+        action: kIsWeb && !_cameraPermissionGranted
+            ? SnackBarAction(label: 'Grant', onPressed: _checkCameraPermission)
+            : !kIsWeb && Platform.isAndroid
+                ? null
+                : SnackBarAction(
+                    label: 'Settings',
+                    onPressed: () async {
+                      await openAppSettings();
+                      if (mounted) {
+                        _checkCameraPermission();
+                      }
+                    },
+                  ),
         duration: const Duration(seconds: 5),
       ),
     );
   }
 
-  Future<void> _processCameraImage(CameraImage image) async {
-    if (_isDetecting || !mounted || kIsWeb) return;
-    _isDetecting = true;
-
-    try {
-      final inputImage = _inputImageFromCameraImage(image);
-      if (inputImage == null) {
-        print("No face.");
-        return;
-      }
-
-      final faces = await _faceDetector.processImage(inputImage);
-      if (mounted) {
-        setState(() => _faces = faces);
-      }
-    } catch (e) {
-      print('Face detection error: $e');
-    } finally {
-      _isDetecting = false;
-    }
+  @override
+  void dispose() {
+    _cameraController.dispose();
+    super.dispose();
   }
 
-  InputImage? _inputImageFromCameraImage(CameraImage image) {
-    try {
-      final format = InputImageFormatValue.fromRawValue(image.format.raw);
-      if (format == null) return null;
-
-      return InputImage.fromBytes(
-        bytes: image.planes[0].bytes,
-        metadata: InputImageMetadata(
-          size: Size(image.width.toDouble(), image.height.toDouble()),
-          rotation: InputImageRotation.rotation0deg,
-          format: format,
-          bytesPerRow: image.planes[0].bytesPerRow,
-        ),
-      );
-    } catch (e) {
-      print('Image conversion error: $e');
-      return null;
-    }
-  }
+  bool _isInitialized = false;
 
   @override
   Widget build(BuildContext context) {
@@ -177,8 +165,8 @@ class GlassesTryOnScreenState extends State<GlassesTryOnScreen> {
               const SizedBox(height: 20),
               Text(
                 _cameraPermissionGranted
-                    ? 'Initializing Camera...'
-                    : 'Waiting for camera permission...',
+                    ? initializingCamera
+                    : waitingCameraPermission,
                 style: const TextStyle(color: Colors.white),
               ),
               if (!_cameraPermissionGranted && !kIsWeb) ...[
@@ -198,101 +186,28 @@ class GlassesTryOnScreenState extends State<GlassesTryOnScreen> {
       body: Stack(
         children: [
           CameraPreview(_cameraController),
-          _buildFaceOverlay(),
-          _buildGlassesSelector(),
+          FaceOverlay(
+            selectedGlasses: _selectedGlasses,
+            faceDetectionService: _faceDetectionService,
+          ),
+          Positioned(
+            bottom: 20,
+            left: 0,
+            right: 0,
+            child: Column(
+              children: [
+                GlassesSelector(
+                  glassesList: glassesList,
+                  selectedGlasses: _selectedGlasses,
+                  onGlassesSelected: (index) {
+                    setState(() => _selectedGlasses = index);
+                  },
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
-  }
-
-  Widget _buildFaceOverlay() {
-    if (_faces.isEmpty || kIsWeb) return Container();
-
-    final face = _faces.first;
-    final leftEye = face.landmarks[FaceLandmarkType.leftEye]?.position;
-    final rightEye = face.landmarks[FaceLandmarkType.rightEye]?.position;
-    final noseBase = face.landmarks[FaceLandmarkType.noseBase]?.position;
-
-    if (leftEye == null || rightEye == null || noseBase == null) {
-      return Container();
-    }
-
-    final currentGlasses = glassesList[_selectedGlasses];
-    final eyeDistance = (rightEye.x - leftEye.x).abs();
-    final glassesWidth = eyeDistance * 2.5 * currentGlasses.scaleFactor;
-    final glassesHeight = glassesWidth * 0.4;
-
-    return Positioned(
-      left: leftEye.x - glassesWidth * 0.35,
-      top: noseBase.y - glassesHeight * 0.5,
-      child: Image.asset(
-        currentGlasses.assetPath,
-        width: glassesWidth,
-        height: glassesHeight,
-        fit: BoxFit.contain,
-      ),
-    );
-  }
-
-  Widget _buildGlassesSelector() {
-    return Positioned(
-      bottom: 20,
-      left: 0,
-      right: 0,
-      child: SizedBox(
-        height: 120,
-        child: ListView.builder(
-          scrollDirection: Axis.horizontal,
-          itemCount: glassesList.length,
-          itemBuilder: (context, index) {
-            final glasses = glassesList[index];
-            return GestureDetector(
-              onTap: () => setState(() => _selectedGlasses = index),
-              child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 8),
-                width: 100,
-                child: Column(
-                  children: [
-                    Container(
-                      decoration: BoxDecoration(
-                        border: Border.all(
-                          color: _selectedGlasses == index
-                              ? Colors.blue
-                              : Colors.transparent,
-                          width: 2,
-                        ),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Image.asset(
-                        glasses.assetPath,
-                        width: 80,
-                        height: 60,
-                        fit: BoxFit.contain,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      glasses.name,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        ),
-      ),
-    );
-  }
-
-  @override
-  void dispose() {
-    _cameraController.dispose();
-    _faceDetector.close();
-    super.dispose();
   }
 }
