@@ -9,7 +9,7 @@ import '../services/face_detection_service.dart';
 import 'widgets/glasses_selector.dart'; // Import GlassesSelector
 
 class GlassesTryOnScreen extends StatefulWidget {
-  const GlassesTryOnScreen({Key? key}) : super(key: key);
+  const GlassesTryOnScreen({super.key});
 
   @override
   State<GlassesTryOnScreen> createState() => _GlassesTryOnScreenState();
