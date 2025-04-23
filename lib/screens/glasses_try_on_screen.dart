@@ -20,6 +20,7 @@ class _GlassesTryOnScreenState extends State<GlassesTryOnScreen> {
   final FaceDetectionService _faceDetectionService = FaceDetectionService();
   int _selectedGlasses = 0;
   bool _cameraPermissionGranted = false;
+  CameraLensDirection _selectedCamera = CameraLensDirection.front;
   static const String initializingCamera = 'Initializing Camera...';
   static const String waitingCameraPermission =
       'Waiting for camera permission...';
@@ -73,27 +74,28 @@ class _GlassesTryOnScreenState extends State<GlassesTryOnScreen> {
         _showCameraError('No cameras available on this device');
         return;
       }
+
+      late CameraDescription camera;
       if (kIsWeb) {
-        final frontCamera = cameras.firstWhere(
-            (camera) => camera.lensDirection == CameraLensDirection.front,
-            orElse: () => cameras.first);
+        camera = cameras.firstWhere((camera) => camera.lensDirection == _selectedCamera);
+
         // Web-specific initialization with lower resolution
         // Consider using a lower resolution for web for performance reasons
 
         // You might also want to disable audio for web
         _cameraController = CameraController(
-          frontCamera,
+          camera,
           ResolutionPreset.low,
           enableAudio: false,
         );
       } else {
-        // Mobile initialization
+        camera = cameras.firstWhere(
+            (camera) => camera.lensDirection == _selectedCamera,
+            orElse: () => cameras.first);
         _cameraController = CameraController(
-          cameras.firstWhere(
-            (camera) => camera.lensDirection == CameraLensDirection.front,
-            orElse: () => cameras.first,
-          ),
+          camera,
           ResolutionPreset.medium,
+          enableAudio: false,
         );
       }
 
@@ -113,6 +115,17 @@ class _GlassesTryOnScreenState extends State<GlassesTryOnScreen> {
       }
       setState(() => _isInitialized = false); // Camera initialization failed
       _showCameraError(e.toString());
+    }
+  }
+
+  Future<void> _toggleCamera() async {
+    setState(() {
+      _selectedCamera = _selectedCamera == CameraLensDirection.front
+          ? CameraLensDirection.back
+          : CameraLensDirection.front;
+    });
+    if (mounted) {
+      await _initializeCamera();
     }
   }
 
@@ -187,8 +200,16 @@ class _GlassesTryOnScreenState extends State<GlassesTryOnScreen> {
         children: [
           CameraPreview(_cameraController),
           FaceOverlay(
-            selectedGlasses: _selectedGlasses,
             faceDetectionService: _faceDetectionService,
+            selectedGlasses: _selectedGlasses,
+          ),
+          Positioned(
+            top: 20,
+            right: 20,
+            child: IconButton(
+              icon: const Icon(Icons.flip_camera_android, color: Colors.white),
+              onPressed: _toggleCamera,
+            ),
           ),
           Positioned(
             bottom: 20,
