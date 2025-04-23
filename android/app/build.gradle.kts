@@ -35,23 +35,22 @@ android {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
-            // ... other configurations
-            minifyEnabled true
-            shrinkResources true
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
 
     aaptOptions {
-        noCompress("tflite")  // Your model's file extension: "tflite", "lite", etc.
+        noCompress("tflite")
     }
 
     splits {
         abi {
-            enable true
-            universalApk false
+            isEnable = true
+            isUniversalApk = false
             reset()
-            include 'armeabi-v7a', 'arm64-v8a', 'x86_64'
+            include("armeabi-v7a", "arm64-v8a", "x86_64")
         }
     }
 }
@@ -67,3 +66,4 @@ dependencies {
 flutter {
     source = "../.."
 }
+
