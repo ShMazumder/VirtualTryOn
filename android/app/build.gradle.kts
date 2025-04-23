@@ -10,12 +10,12 @@ android {
     ndkVersion = "27.0.12077973" //flutter.ndkVersion
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_11.toString()
+        jvmTarget = JavaVersion.VERSION_17.toString()
     }
 
     defaultConfig {
@@ -24,14 +24,19 @@ android {
         targetSdk = 35 //flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+    }
 
     buildTypes {
+        debug {
+            isDebuggable = true
+        }
+
         release {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
             isMinifyEnabled = true
-            isShrinkResources = true
+            isShrinkResources = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             ndk {
                 debugSymbolLevel = "none"
@@ -46,17 +51,12 @@ android {
             include("arm64-v8a", "armeabi-v7a")
         }
     }
-    }
-    
+
     aaptOptions {
         noCompress("tflite")
     }
 }
 
-dependencies {
-}
-
 flutter {
     source = "../.."
 }
-

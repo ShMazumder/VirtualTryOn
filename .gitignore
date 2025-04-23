@@ -46,3 +46,5 @@ app.*.map.json
 
 .firebase
 node_modules
+
+/android0
