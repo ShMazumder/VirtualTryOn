@@ -33,88 +33,69 @@ class _GlassesTryOnScreenState extends State<GlassesTryOnScreen> {
 
   Future<void> _checkCameraPermission() async {
     if (kIsWeb) {
-      if (await Permission.camera.isGranted) {
-        setState(() => _cameraPermissionGranted = true);
-        _initializeCamera();
-      } else {
-        final status = await Permission.camera.request();
-        if (status.isGranted) {
-          setState(() => _cameraPermissionGranted = true);
-          _initializeCamera();
-        } else {
-          _showCameraError(
-              'Camera permission not granted on web. Please enable it in your browser settings.');
-        }
-      }
-      return;
-    }
-
-    final status = await Permission.camera.status;
-    if (!status.isGranted) {
-      final result = await Permission.camera.request();
-      if (result.isGranted) {
-        setState(() => _cameraPermissionGranted = true);
-        _initializeCamera();
+      await _handleWebCameraPermission();
+    } else {
+      final status = await Permission.camera.status;
+      if (status.isGranted || (await Permission.camera.request()).isGranted) {
+        _onCameraPermissionGranted();
       } else {
         _showCameraError(
-            'Camera permission not granted. Please enable it in your device settings.');
+          'Camera permission not granted. Please enable it in your device settings.',
+        );
       }
-    } else {
-      setState(() => _cameraPermissionGranted = true);
-      _initializeCamera();
     }
+  }
+
+  Future<void> _handleWebCameraPermission() async {
+    final status = await Permission.camera.status;
+    if (status.isGranted || (await Permission.camera.request()).isGranted) {
+      _onCameraPermissionGranted();
+    } else {
+      _showCameraError(
+        'Camera permission not granted on web. Please enable it in your browser settings.',
+      );
+    }
+  }
+
+  void _onCameraPermissionGranted() {
+    setState(() => _cameraPermissionGranted = true);
+    _initializeCamera();
   }
 
   Future<void> _initializeCamera() async {
     try {
-      // First get available cameras
       final cameras = await availableCameras();
 
       if (cameras.isEmpty) {
-        _showCameraError('No cameras available on this device');
+        _showCameraError('No cameras available on this device.');
         return;
       }
 
-      late CameraDescription camera;
-      if (kIsWeb) {
-        camera = cameras.firstWhere((camera) => camera.lensDirection == _selectedCamera);
+      final camera = cameras.firstWhere(
+        (c) => c.lensDirection == _selectedCamera,
+        orElse: () => cameras.first,
+      );
 
-        // Web-specific initialization with lower resolution
-        // Consider using a lower resolution for web for performance reasons
-
-        // You might also want to disable audio for web
-        _cameraController = CameraController(
-          camera,
-          ResolutionPreset.low,
-          enableAudio: false,
-        );
-      } else {
-        camera = cameras.firstWhere(
-            (camera) => camera.lensDirection == _selectedCamera,
-            orElse: () => cameras.first);
-        _cameraController = CameraController(
-          camera,
-          ResolutionPreset.medium,
-          enableAudio: false,
-        );
-      }
+      _cameraController = CameraController(
+        camera,
+        kIsWeb ? ResolutionPreset.low : ResolutionPreset.medium,
+        enableAudio: false,
+      );
 
       await _cameraController.initialize();
 
       if (!kIsWeb) {
-        _cameraController
-            .startImageStream(_faceDetectionService.processCameraImage);
+        _cameraController.startImageStream(
+          _faceDetectionService.processCameraImage,
+        );
       }
-      setState(() => _isInitialized = true); // Camera initialized successfully
+
+      setState(() => _isInitialized = true);
     } on CameraException catch (e) {
-      String errorDescription;
-      switch (e.code) {
-        default:
-          errorDescription =
-              'An unknown camera error occurred: ${e.description}';
-      }
-      setState(() => _isInitialized = false); // Camera initialization failed
-      _showCameraError(e.toString());
+      _showCameraError(
+        'Camera error [${e.code}]: ${e.description ?? "Unknown error"}',
+      );
+      setState(() => _isInitialized = false);
     }
   }
 

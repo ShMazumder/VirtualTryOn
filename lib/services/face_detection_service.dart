@@ -11,44 +11,30 @@ class FaceDetectionService {
     ),
   );
 
-  ValueNotifier<List<Face>> faces = ValueNotifier([]);
+  final ValueNotifier<List<Face>> faces = ValueNotifier([]);
 
   Future<List<Face>> processCameraImage(CameraImage image) async {
-    final inputImage = _inputImageFromCameraImage(image);
-    if (inputImage == null) {
-      print("No face.");
+    final inputImage = _convertToInputImage(image);
+    if (inputImage == null) return [];
+
+    try {
+      final detectedFaces = await _faceDetector.processImage(inputImage);
+      faces.value = detectedFaces;
+      return detectedFaces;
+    } catch (e) {
+      debugPrint('Face detection failed: $e');
       return [];
     }
-  final detectedFaces = await _faceDetector.processImage(inputImage);
-    faces.value = detectedFaces;
-    return detectedFaces;
   }
 
-  InputImage? _inputImageFromCameraImage(CameraImage image) {
-        if (image == null) {
-          print("CameraImage is null");
-          return null;
-        }
+  InputImage? _convertToInputImage(CameraImage image) {
     try {
-        final format = InputImageFormatValue.fromRawValue(image.format.raw);
-        if (format == null) {
-          print('Unsupported image format: ${image.format.raw}');
-          final correctFormat = image.format.raw == 87
-              ? InputImageFormat.nv21
-              : InputImageFormat.yuv_420_888;
-          if(image.format.raw == 87 || image.format.raw == 842094169) {
-            return InputImage.fromBytes(
-                bytes: image.planes[0].bytes,
-                metadata: InputImageMetadata(
-                    size: Size(image.width.toDouble(), image.height.toDouble()),
-                    rotation: InputImageRotation.rotation0deg,
-                    format: correctFormat,
-                    bytesPerRow: image.planes[0].bytesPerRow,
-                ),
-              );
-          } else {
-            return null;
-          }
+      final format = InputImageFormatValue.fromRawValue(image.format.raw);
+      final supportedFormat = format ?? _fallbackFormat(image.format.raw);
+
+      if (supportedFormat == null) {
+        debugPrint('Unsupported image format: ${image.format.raw}');
+        return null;
       }
 
       return InputImage.fromBytes(
@@ -56,13 +42,24 @@ class FaceDetectionService {
         metadata: InputImageMetadata(
           size: Size(image.width.toDouble(), image.height.toDouble()),
           rotation: InputImageRotation.rotation0deg,
-          format: format,
+          format: supportedFormat,
           bytesPerRow: image.planes[0].bytesPerRow,
         ),
       );
     } catch (e) {
-      print('Image conversion error: $e');
+      debugPrint('Failed to convert camera image: $e');
       return null;
+    }
+  }
+
+  InputImageFormat? _fallbackFormat(int rawFormat) {
+    switch (rawFormat) {
+      case 87:
+        return InputImageFormat.nv21;
+      case 842094169:
+        return InputImageFormat.yuv_420_888;
+      default:
+        return null;
     }
   }
 
@@ -71,4 +68,5 @@ class FaceDetectionService {
   }
 }
 
+// Global instance
 final faceDetectionService = FaceDetectionService();
