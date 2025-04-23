@@ -1,10 +1,9 @@
 plugins {
     id("com.android.application")
     id("kotlin-android")
-    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
-
+ 
 android {
     namespace = "com.example.virtual_glasses_tryon"
     compileSdk = 35 //flutter.compileSdkVersion
@@ -20,15 +19,11 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.example.virtual_glasses_tryon"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = 24 //flutter.minSdkVersion
         targetSdk = 35 //flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
-    }
 
     buildTypes {
         release {
@@ -38,29 +33,27 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            ndk {
+                debugSymbolLevel = "none"
+            }
         }
-    }
-
-    aaptOptions {
-        noCompress("tflite")
     }
 
     splits {
         abi {
             isEnable = true
-            isUniversalApk = false
-            reset()
-            include("armeabi-v7a", "arm64-v8a", "x86_64")
+            isUniversalApk = false            
+            include("arm64-v8a", "armeabi-v7a")
         }
+    }
+    }
+    
+    aaptOptions {
+        noCompress("tflite")
     }
 }
 
 dependencies {
-    // Add language package you need to use
-    implementation("com.google.mlkit:text-recognition-chinese:16.0.0")
-    implementation("com.google.mlkit:text-recognition-devanagari:16.0.0")
-    implementation("com.google.mlkit:text-recognition-japanese:16.0.0")
-    implementation("com.google.mlkit:text-recognition-korean:16.0.0")
 }
 
 flutter {

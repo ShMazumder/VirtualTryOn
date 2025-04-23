@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_ml_kit/google_ml_kit.dart';
+import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 import '../../models/glasses_model.dart';
 import '../../services/face_detection_service.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
